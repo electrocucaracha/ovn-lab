@@ -1,13 +1,14 @@
 #!/bin/bash
 
 apt-get update
-apt-get install -y build-essential fakeroot debhelper dh-autoreconf libssl-dev
+apt-get install -y git
 
-wget http://openvswitch.org/releases/openvswitch-2.5.0.tar.gz
-tar xf openvswitch-2.5.0.tar.gz
-pushd openvswitch-2.5.0/
+cat <<EOL > /etc/gitconfig
+[url "https://"]
+        insteadof = git://
+EOL
 
-DEB_BUILD_OPTIONS='parallel=8 nocheck' fakeroot debian/rules binary
+git clone https://github.com/mininet/mininet.git
+./mininet/util/install.sh -a
 
-popd
-dpkg -i openvswitch-switch_2.5.0-1_amd64.deb openvswitch-common_2.5.0-1_amd64.deb
+# sudo mn --test pingall
