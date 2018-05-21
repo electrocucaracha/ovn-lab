@@ -1,25 +1,89 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# All Vagrant configuration is done below. The "2" in Vagrant.configure
-# configures the configuration version (we support older styles for
-# backwards compatibility). Please don't change it unless you know what
-# you're doing.
-Vagrant.configure(2) do |config|
-  config.vm.box = "wholebits/ubuntu16.04-64"
-  config.vm.hostname = "mininet"
-  config.vm.network :private_network, ip: '192.168.50.10'
-  config.vm.provision "shell", path: "postinstall.sh"
-  config.vm.provider "virtualbox" do |v|
-    v.customize ["modifyvm", :id, "--memory", 6 * 1024]
+box = {
+  :virtualbox => 'ubuntu/xenial64',
+  :libvirt => 'elastic/ubuntu-16.04-x86_64'
+}
+
+nodes = [
+  {
+    :name   => "controller01",
+    :ip     => "10.10.10.3",
+    :memory => 1024 * 8,
+    :cpus   => 2
+  },
+  {
+    :name   => "compute01",
+    :ip     => "10.10.10.4",
+    :memory => 1024 * 8,
+    :cpus   => 2
+  },
+  {
+    :name   => "compute02",
+    :ip     => "10.10.10.5",
+    :memory => 1024 * 8,
+    :cpus   => 2
+  },
+]
+
+provider = (ENV['VAGRANT_DEFAULT_PROVIDER'] || :virtualbox).to_sym
+puts "[INFO] Provider: #{provider} "
+
+if ENV['no_proxy'] != nil or ENV['NO_PROXY']
+  $no_proxy = ENV['NO_PROXY'] || ENV['no_proxy'] || "127.0.0.1,localhost"
+  nodes.each do |node|
+    $no_proxy += "," + node[:ip]
   end
-  if ENV['http_proxy'] != nil and ENV['https_proxy'] != nil and ENV['no_proxy'] != nil
+  $subnet = "192.168.121"
+  # NOTE: This range is based on vagrant-libivirt network definition
+  (1..27).each do |i|
+    $no_proxy += ",#{$subnet}.#{i}"
+  end
+end
+
+Vagrant.configure("2") do |config|
+  config.vm.box =  box[provider]
+
+  if ENV['http_proxy'] != nil and ENV['https_proxy'] != nil
     if not Vagrant.has_plugin?('vagrant-proxyconf')
       system 'vagrant plugin install vagrant-proxyconf'
       raise 'vagrant-proxyconf was installed but it requires to execute again'
     end
-    config.proxy.http     = ENV['http_proxy']
-    config.proxy.https    = ENV['https_proxy']
-    config.proxy.no_proxy = ENV['no_proxy']
+    config.proxy.http     = ENV['http_proxy'] || ENV['HTTP_PROXY'] || ""
+    config.proxy.https    = ENV['https_proxy'] || ENV['HTTPS_PROXY'] || ""
+    config.proxy.no_proxy = $no_proxy
+  end
+
+  nodes.each do |node|
+    config.vm.define node[:name] do |nodeconfig|
+      nodeconfig.vm.hostname = node[:name]
+      nodeconfig.ssh.insert_key = false
+      nodeconfig.vm.network :private_network, :ip => node[:ip], :type => :static
+      nodeconfig.vm.provider 'virtualbox' do |v|
+        v.customize ["modifyvm", :id, "--memory", node[:memory]]
+        v.customize ["modifyvm", :id, "--cpus", node[:cpus]]
+      end
+      nodeconfig.vm.provider 'libvirt' do |v|
+        v.memory = node[:memory]
+        v.cpus = node[:cpus]
+        v.nested = true
+        v.cpu_mode = 'host-passthrough'
+      end
+    end
+  end
+  sync_type = "virtualbox"
+  if provider == :libvirt
+    if not Vagrant.has_plugin?('vagrant-libvirt')
+      system 'vagrant plugin install vagrant-libvirt'
+      raise 'vagrant-libvirt was installed but it requires to execute again'
+    end
+    sync_type = "nfs"
+  end
+  config.vm.define :installer do |installer|
+    installer.vm.hostname = "installer"
+    installer.ssh.insert_key = false
+    installer.vm.network :private_network, :ip => "10.10.10.2", :type => :static
+    installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
   end
 end

@@ -1,18 +1,22 @@
-# Open vSwitch
+# OpenVSwitch & OVN
 
-This vagrant project was created to cover basic steps and requirements for [Open vSwitch installation] (http://openvswitch.org/).  This is my ongoing effort to understand SDN.
+This vagrant project was created to validate the process to install
+[Open vSwitch][1] and [Open Virtual Network][2] through ansible
+playbooks as method to provision.
 
 ## Requirements:
 
-* Vagrant
-* VirtualBox
+  * [Vagrant][3]
+  * [VirtualBox][4] or [Libvirt][5]
 
-## Steps for execution:
+## Execution:
 
-    git clone https://github.com/electrocucaracha/vagrant-openvswitch.git
-    cd vagrant-openvswitch
-    vagrant up
+    $ git clone https://github.com/electrocucaracha/vagrant-openvswitch.git
+    $ cd vagrant-openvswitch
+    $ vagrant up
 
-## Destroy:
-
-    vagrant destroy
+[1]: http://docs.openvswitch.org/en/latest/topics/#ovs
+[2]: http://docs.openvswitch.org/en/latest/topics/#ovn
+[3]: https://www.vagrantup.com/downloads.html
+[4]: https://www.virtualbox.org/wiki/Downloads
+[5]: http://libvirt.org/downloads.html
