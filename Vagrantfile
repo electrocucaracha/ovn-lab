@@ -1,6 +1,17 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+$installer_script = <<-SCRIPT
+apt install -y sshpass
+pushd /home/vagrant
+cat <<EOL > ansible.cfg
+[defaults]
+host_key_checking = false
+EOL
+echo "ansible-playbook -vvv -i /vagrant/hosts.ini /vagrant/configure-ovn.yml | tee setup-ovn.log" > re-run.sh
+chmod +x re-run.sh
+SCRIPT
+
 box = {
   :virtualbox => 'ubuntu/xenial64',
   :libvirt => 'elastic/ubuntu-16.04-x86_64'
@@ -84,6 +95,7 @@ Vagrant.configure("2") do |config|
     installer.vm.hostname = "installer"
     installer.ssh.insert_key = false
     installer.vm.network :private_network, :ip => "10.10.10.2", :type => :static
+    installer.vm.provision 'shell', inline: $installer_script
     installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
   end
 end
