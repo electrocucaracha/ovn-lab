@@ -1,3 +1,5 @@
+hosts.ini
 .vagrant/
 *.retry
 *.log
+*.swp

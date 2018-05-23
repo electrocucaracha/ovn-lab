@@ -1,42 +1,34 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-$installer_script = <<-SCRIPT
-apt install -y sshpass
-pushd /home/vagrant
-cat <<EOL > ansible.cfg
-[defaults]
-host_key_checking = false
-EOL
-echo "ansible-playbook -vvv -i /vagrant/hosts.ini /vagrant/configure-ovn.yml | tee setup-ovn.log" > re-run.sh
-chmod +x re-run.sh
-SCRIPT
-
 box = {
   :virtualbox => 'ubuntu/xenial64',
   :libvirt => 'elastic/ubuntu-16.04-x86_64'
 }
 
-nodes = [
-  {
-    :name   => "controller01",
-    :ip     => "10.10.10.3",
-    :memory => 1024 * 8,
-    :cpus   => 2
-  },
-  {
-    :name   => "compute01",
-    :ip     => "10.10.10.4",
-    :memory => 1024 * 8,
-    :cpus   => 2
-  },
-  {
-    :name   => "compute02",
-    :ip     => "10.10.10.5",
-    :memory => 1024 * 8,
-    :cpus   => 2
-  },
-]
+require 'yaml'
+idf = ENV.fetch('IDF', 'etc/idf.yml')
+nodes = YAML.load_file(idf)
+
+# Inventory file creation
+File.open("hosts.ini", "w") do |inventory_file|
+  inventory_file.puts("[all:vars]\nansible_connection=ssh\nansible_ssh_user=vagrant\nansible_ssh_pass=vagrant\n\n[all]")
+  nodes.each do |node|
+    inventory_file.puts("#{node['name']}\tansible_ssh_host=#{node['ip']} ansible_ssh_port=22")
+  end
+  inventory_file.puts("\n[ovn-central]")
+  nodes.each do |node|
+    if node['roles'].include?("ovn-central")
+       inventory_file.puts(node['name'])
+    end
+  end
+  inventory_file.puts("\n[ovn-controller]")
+  nodes.each do |node|
+    if node['roles'].include?("ovn-controller")
+       inventory_file.puts(node['name'])
+    end
+  end
+end
 
 provider = (ENV['VAGRANT_DEFAULT_PROVIDER'] || :virtualbox).to_sym
 puts "[INFO] Provider: #{provider} "
@@ -44,7 +36,7 @@ puts "[INFO] Provider: #{provider} "
 if ENV['no_proxy'] != nil or ENV['NO_PROXY']
   $no_proxy = ENV['NO_PROXY'] || ENV['no_proxy'] || "127.0.0.1,localhost"
   nodes.each do |node|
-    $no_proxy += "," + node[:ip]
+    $no_proxy += "," + node['ip']
   end
   $subnet = "192.168.121"
   # NOTE: This range is based on vagrant-libivirt network definition
@@ -67,17 +59,17 @@ Vagrant.configure("2") do |config|
   end
 
   nodes.each do |node|
-    config.vm.define node[:name] do |nodeconfig|
-      nodeconfig.vm.hostname = node[:name]
+    config.vm.define node['name'] do |nodeconfig|
+      nodeconfig.vm.hostname = node['name']
       nodeconfig.ssh.insert_key = false
-      nodeconfig.vm.network :private_network, :ip => node[:ip], :type => :static
+      nodeconfig.vm.network :private_network, :ip => node['ip'], :type => :static
       nodeconfig.vm.provider 'virtualbox' do |v|
-        v.customize ["modifyvm", :id, "--memory", node[:memory]]
-        v.customize ["modifyvm", :id, "--cpus", node[:cpus]]
+        v.customize ["modifyvm", :id, "--memory", node['memory']]
+        v.customize ["modifyvm", :id, "--cpus", node['cpus']]
       end
       nodeconfig.vm.provider 'libvirt' do |v|
-        v.memory = node[:memory]
-        v.cpus = node[:cpus]
+        v.memory = node['memory']
+        v.cpus = node['cpus']
         v.nested = true
         v.cpu_mode = 'host-passthrough'
       end
@@ -91,11 +83,11 @@ Vagrant.configure("2") do |config|
     end
     sync_type = "nfs"
   end
-  config.vm.define :installer do |installer|
+  config.vm.define :installer, primary: true, autostart: false do |installer|
     installer.vm.hostname = "installer"
     installer.ssh.insert_key = false
-    installer.vm.network :private_network, :ip => "10.10.10.2", :type => :static
-    installer.vm.provision 'shell', inline: $installer_script
-    installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
+    installer.vm.network :private_network, :ip => "10.10.11.2", :type => :static
+    installer.vm.provision 'shell', path: 'installer'
+#    installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
   end
 end

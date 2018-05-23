@@ -7,16 +7,22 @@
 # which accompanies this distribution, and is available at
 # http://www.apache.org/licenses/LICENSE-2.0
 ##############################################################################
-openvswitch_service: openvswitch-switch
-openvswitch_pkgs:
-  - openvswitch-common
-  - openvswitch-switch
-  - libopenvswitch
-  - openvswitch-datapath-dkms
-ovn_central_service: ovn-central
-ovn_central_pkgs:
-  - ovn-central # <= 2.8.1-1
-ovn_controller_service: ovn-host
-ovn_pkgs:
-  - ovn-common # <= 2.8.1-1
-  - ovn-host
+
+- name: "controller01"
+  ip: "10.10.11.3"
+  memory: 1024 * 2
+  cpus: 2
+  roles:
+    - ovn-central
+- name: "compute01"
+  ip: "10.10.11.4"
+  memory: 1024
+  cpus: 2
+  roles:
+    - ovn-controller
+- name: "compute02"
+  ip: "10.10.11.5"
+  memory: 1024
+  cpus: 2
+  roles:
+    - ovn-controller

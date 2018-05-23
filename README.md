@@ -14,6 +14,7 @@ playbooks as method to provision.
     $ git clone https://github.com/electrocucaracha/vagrant-openvswitch.git
     $ cd vagrant-openvswitch
     $ vagrant up
+    $ vagrant up installer
 
 [1]: http://docs.openvswitch.org/en/latest/topics/#ovs
 [2]: http://docs.openvswitch.org/en/latest/topics/#ovn
