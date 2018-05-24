@@ -55,16 +55,18 @@
         name: "{{ item }}"
         state: present
       with_items: "{{ ovn_central_pkgs }}"
-    - name: configure ovsdb-server to listen passive tcp connections
-      command: "ovs-appctl -t ovsdb-server ovsdb-server/add-remote ptcp:6640"
+    - name: enable remote connections to southbound and northbound dbs
+      lineinfile:
+        path: /etc/default/ovn-central
+        line: "OVN_CTL_OPTS=\" --db-sb-create-insecure-remote=yes --db-nb-create-insecure-remote=yes\""
+        state: present
       become: yes
-    - name: set ovn-cms-options with enable-chassis-as-gw
-      command: "ovs-vsctl set open . external-ids:ovn-cms-options=enable-chassis-as-gw"
-      become: yes
+      when: ansible_os_family == "Debian"
     - name: start OVN northbound database services
       service:
         name: "{{ ovn_central_service }}"
-        state: started
+        state: restarted
+      become: yes
 
 - hosts: ovn-controller
   vars:
@@ -82,11 +84,7 @@
         state: stopped
       ignore_errors: True
     - name: configure OpenVSwitch databases
-      command: "ovs-vsctl set open . external-ids:ovn-remote=tcp:{{ item }}:6640"
-      with_items: "{{ ovn_central_ips }}"
-      become: yes
-    - name: configure OpenVSwitch northbound databases
-      command: "ovs-vsctl set open . external-ids:ovn-nb=tcp:{{ item }}:6640"
+      command: "ovs-vsctl set open . external-ids:ovn-remote=tcp:{{ item }}:6642"
       with_items: "{{ ovn_central_ips }}"
       become: yes
     - name: enable overlay network protocols
