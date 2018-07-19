@@ -2,12 +2,12 @@
 # vi: set ft=ruby :
 
 box = {
-  :virtualbox => 'ubuntu/xenial64',
-  :libvirt => 'elastic/ubuntu-16.04-x86_64'
+  :virtualbox => { :name => 'elastic/ubuntu-16.04-x86_64', :version => '20180708.0.0' },
+  :libvirt => { :name => 'elastic/ubuntu-16.04-x86_64', :version=> '20180210.0.0'}
 }
 
 require 'yaml'
-idf = ENV.fetch('IDF', 'etc/idf.yml')
+idf = 'etc/idf.yml'
 nodes = YAML.load_file(idf)
 
 # Inventory file creation
@@ -46,7 +46,8 @@ if ENV['no_proxy'] != nil or ENV['NO_PROXY']
 end
 
 Vagrant.configure("2") do |config|
-  config.vm.box =  box[provider]
+  config.vm.box =  box[provider][:name]
+  config.vm.box_version = box[provider][:version]
 
   if ENV['http_proxy'] != nil and ENV['https_proxy'] != nil
     if not Vagrant.has_plugin?('vagrant-proxyconf')
@@ -86,7 +87,7 @@ Vagrant.configure("2") do |config|
   config.vm.define :installer, primary: true, autostart: false do |installer|
     installer.vm.hostname = "installer"
     installer.ssh.insert_key = false
-    installer.vm.network :private_network, :ip => "10.10.11.2", :type => :static
+    installer.vm.network :private_network, :ip => "10.127.0.254", :type => :static
     installer.vm.provision 'shell', path: 'installer'
 #    installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
   end

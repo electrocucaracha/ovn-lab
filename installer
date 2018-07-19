@@ -13,7 +13,8 @@ set -o nounset
 set -o pipefail
 
 apt install -y sshpass
-cat <<EOL > ansible.cfg
+mkdir -p /etc/ansible/
+cat <<EOL > /etc/ansible/ansible.cfg
 [defaults]
 host_key_checking = false
 EOL

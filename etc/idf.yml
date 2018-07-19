@@ -8,20 +8,20 @@
 # http://www.apache.org/licenses/LICENSE-2.0
 ##############################################################################
 
-- name: "controller01"
-  ip: "10.10.11.3"
+- name: "ubuntu1"
+  ip: "10.127.0.2"
   memory: 1024
   cpus: 2
   roles:
     - ovn-central
-- name: "compute01"
-  ip: "10.10.11.4"
+- name: "ubuntu2"
+  ip: "10.127.0.3"
   memory: 1024
   cpus: 2
   roles:
     - ovn-controller
-- name: "compute02"
-  ip: "10.10.11.5"
+- name: "ubuntu3"
+  ip: "10.127.0.4"
   memory: 1024
   cpus: 2
   roles:
