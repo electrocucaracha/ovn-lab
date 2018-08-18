@@ -4,6 +4,8 @@ This vagrant project was created to validate the process to install
 [Open vSwitch][1] and [Open Virtual Network][2] through ansible
 playbooks as method to provision.
 
+It also helps to setup a lab described on the post of ["A Primer on OVN"][6]
+
 ## Requirements:
 
   * [Vagrant][3]
@@ -21,3 +23,4 @@ playbooks as method to provision.
 [3]: https://www.vagrantup.com/downloads.html
 [4]: https://www.virtualbox.org/wiki/Downloads
 [5]: http://libvirt.org/downloads.html
+[6]: http://blog.spinhirne.com/2016/09/a-primer-on-ovn.html
