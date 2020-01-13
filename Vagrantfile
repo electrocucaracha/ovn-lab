@@ -1,20 +1,30 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
+##############################################################################
+# Copyright (c) 2020
+# All rights reserved. This program and the accompanying materials
+# are made available under the terms of the Apache License, Version 2.0
+# which accompanies this distribution, and is available at
+# http://www.apache.org/licenses/LICENSE-2.0
+##############################################################################
 
-box = {
-  :virtualbox => { :name => 'elastic/ubuntu-16.04-x86_64', :version => '20180708.0.0' },
-  :libvirt => { :name => 'elastic/ubuntu-16.04-x86_64', :version=> '20180210.0.0'}
-}
+$no_proxy = ENV['NO_PROXY'] || ENV['no_proxy'] || "127.0.0.1,localhost"
+# NOTE: This range is based on vagrant-libvirt network definition CIDR 192.168.121.0/24
+(1..254).each do |i|
+  $no_proxy += ",192.168.121.#{i}"
+end
+$no_proxy += ",10.0.2.15"
+$socks_proxy = ENV['socks_proxy'] || ENV['SOCKS_PROXY'] || ""
 
 require 'yaml'
-idf = 'etc/idf.yml'
-nodes = YAML.load_file(idf)
+nodes = YAML.load_file(File.dirname(__FILE__) + '/etc/idf.yml')
+vagrant_boxes = YAML.load_file(File.dirname(__FILE__) + '/distros_supported.yml')
 
 # Inventory file creation
 File.open("hosts.ini", "w") do |inventory_file|
   inventory_file.puts("[all:vars]\nansible_connection=ssh\nansible_ssh_user=vagrant\nansible_ssh_pass=vagrant\n\n[all]")
   nodes.each do |node|
-    inventory_file.puts("#{node['name']}\tansible_ssh_host=#{node['ip']} ansible_ssh_port=22")
+    inventory_file.puts("#{node['name']}")
   end
   inventory_file.puts("\n[ovn-central]")
   nodes.each do |node|
@@ -30,24 +40,9 @@ File.open("hosts.ini", "w") do |inventory_file|
   end
 end
 
-provider = (ENV['VAGRANT_DEFAULT_PROVIDER'] || :virtualbox).to_sym
-puts "[INFO] Provider: #{provider} "
-
-if ENV['no_proxy'] != nil or ENV['NO_PROXY']
-  $no_proxy = ENV['NO_PROXY'] || ENV['no_proxy'] || "127.0.0.1,localhost"
-  nodes.each do |node|
-    $no_proxy += "," + node['ip']
-  end
-  $subnet = "192.168.121"
-  # NOTE: This range is based on vagrant-libivirt network definition
-  (1..27).each do |i|
-    $no_proxy += ",#{$subnet}.#{i}"
-  end
-end
-
 Vagrant.configure("2") do |config|
-  config.vm.box =  box[provider][:name]
-  config.vm.box_version = box[provider][:version]
+  config.vm.provider :libvirt
+  config.vm.provider :virtualbox
 
   if ENV['http_proxy'] != nil and ENV['https_proxy'] != nil
     if not Vagrant.has_plugin?('vagrant-proxyconf')
@@ -58,37 +53,36 @@ Vagrant.configure("2") do |config|
     config.proxy.https    = ENV['https_proxy'] || ENV['HTTPS_PROXY'] || ""
     config.proxy.no_proxy = $no_proxy
   end
+  config.vm.provider 'libvirt' do |v|
+    v.cpu_mode = 'host-passthrough'
+    v.random_hostname = true
+    v.management_network_address = "192.168.121.0/24"
+  end
 
   nodes.each do |node|
     config.vm.define node['name'] do |nodeconfig|
       nodeconfig.vm.hostname = node['name']
-      nodeconfig.ssh.insert_key = false
+      nodeconfig.vm.box = vagrant_boxes[node["os"]["name"]][node["os"]["release"]]["name"]
+      nodeconfig.vm.box_version = vagrant_boxes[node["os"]["name"]][node["os"]["release"]]["version"]
       nodeconfig.vm.network :private_network, :ip => node['ip'], :type => :static
-      nodeconfig.vm.provider 'virtualbox' do |v|
-        v.customize ["modifyvm", :id, "--memory", node['memory']]
-        v.customize ["modifyvm", :id, "--cpus", node['cpus']]
-      end
-      nodeconfig.vm.provider 'libvirt' do |v|
-        v.memory = node['memory']
-        v.cpus = node['cpus']
-        v.nested = true
-        v.cpu_mode = 'host-passthrough'
+
+      [:virtualbox, :libvirt].each do |provider|
+        nodeconfig.vm.provider provider do |p, override|
+          p.cpus = node["cpus"]
+          p.memory = node["memory"]
+        end
       end
     end
   end
-  sync_type = "virtualbox"
-  if provider == :libvirt
-    if not Vagrant.has_plugin?('vagrant-libvirt')
-      system 'vagrant plugin install vagrant-libvirt'
-      raise 'vagrant-libvirt was installed but it requires to execute again'
-    end
-    sync_type = "nfs"
-  end
+
   config.vm.define :installer, primary: true, autostart: false do |installer|
     installer.vm.hostname = "installer"
-    installer.ssh.insert_key = false
-    installer.vm.network :private_network, :ip => "10.127.0.254", :type => :static
-    installer.vm.provision 'shell', path: 'installer'
-#    installer.vm.provision 'ansible', playbook: "configure-ovn.yml", inventory_path: "hosts.ini", limit: "all"
+    installer.vm.box =  vagrant_boxes["ubuntu"]["xenial"]["name"]
+    installer.vm.provision 'shell', privileged: false do |sh|
+      sh.inline = <<-SHELL
+        cd /vagrant
+        ./install.sh | tee ~/install.log
+      SHELL
+    end
   end
 end

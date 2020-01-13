@@ -9,18 +9,27 @@
 ##############################################################################
 
 - name: "ubuntu1"
+  os:
+    name: "ubuntu"
+    release: "xenial"
   ip: "10.127.0.2"
   memory: 1024
   cpus: 2
   roles:
     - ovn-central
 - name: "ubuntu2"
+  os:
+    name: "ubuntu"
+    release: "xenial"
   ip: "10.127.0.3"
   memory: 1024
   cpus: 2
   roles:
     - ovn-controller
 - name: "ubuntu3"
+  os:
+    name: "ubuntu"
+    release: "xenial"
   ip: "10.127.0.4"
   memory: 1024
   cpus: 2

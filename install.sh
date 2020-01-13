@@ -12,10 +12,16 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-apt install -y sshpass
-mkdir -p /etc/ansible/
-cat <<EOL > /etc/ansible/ansible.cfg
+pkgs="sshpass"
+if ! command -v ansible; then
+    pkgs+=" ansible"
+fi
+if [ -n "$pkgs" ]; then
+    curl -fsSL http://bit.ly/pkgInstall | PKG=$pkgs bash
+fi
+sudo mkdir -p /etc/ansible/
+sudo tee <<EOL /etc/ansible/ansible.cfg
 [defaults]
 host_key_checking = false
 EOL
-ansible-playbook -vvv -i /vagrant/hosts.ini /vagrant/configure-ovn.yml | tee setup-ovn.log
+ansible-playbook -vvv -i ./hosts.ini ./configure-ovn.yml | tee ~/setup-ovn.log
