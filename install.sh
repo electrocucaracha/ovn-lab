@@ -17,7 +17,7 @@ if ! command -v ansible; then
     pkgs+=" ansible"
 fi
 if [ -n "$pkgs" ]; then
-    curl -fsSL http://bit.ly/pkgInstall | PKG=$pkgs bash
+    curl -fsSL http://bit.ly/install_pkg | PKG=$pkgs bash
 fi
 sudo mkdir -p /etc/ansible/
 sudo tee <<EOL /etc/ansible/ansible.cfg
